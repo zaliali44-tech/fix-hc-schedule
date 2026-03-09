@@ -492,40 +492,17 @@
     return checked ? Number(checked.value) : null;
   }
 
-  function cloneArray(arr) {
-    return arr.slice();
-  }
-
-  function sumArray(arr) {
-    return arr.reduce((a, b) => a + b, 0);
-  }
-
-  function normalizeRemaining(arr) {
-    return arr.map(v => Math.max(0, v));
-  }
-
-  function isSolved(remaining) {
-    return remaining.every(v => v <= 0);
-  }
-
-  function remainingKey(arr) {
-    return arr.map(v => Math.max(0, v)).join("|");
-  }
-
   function buildPattern(offIdxs) {
     const work = DAYS.map((_, idx) => offIdxs.includes(idx) ? 0 : 1);
     return {
-      offIdxs: cloneArray(offIdxs),
+      offIdxs: offIdxs.slice(),
       work
     };
   }
 
   function getAllowedPatterns(workDays, patternType) {
     const offDays = 7 - workDays;
-
-    if (offDays <= 0) {
-      return [buildPattern([])];
-    }
+    if (offDays <= 0) return [buildPattern([])];
 
     if (offDays === 1) {
       return DAYS.map((_, idx) => buildPattern([idx]));
@@ -556,50 +533,96 @@
     return [buildPattern([])];
   }
 
-  function scorePattern(pattern, remaining, demand, patternType) {
+  function getCoverageFromChosen(patterns, chosen) {
+    const coverage = Array(7).fill(0);
+    chosen.forEach(idx => {
+      for (let d = 0; d < 7; d++) {
+        coverage[d] += patterns[idx].work[d];
+      }
+    });
+    return coverage;
+  }
+
+  function evaluateCoverage(coverage, demandArr) {
+    let under = 0;
+    let over = 0;
+
+    for (let i = 0; i < 7; i++) {
+      const diff = coverage[i] - demandArr[i];
+      if (diff < 0) under += Math.abs(diff);
+      if (diff > 0) over += diff;
+    }
+
+    return {
+      under,
+      over,
+      score: (under * 1000) + (over * 10)
+    };
+  }
+
+  function scorePatternAgainstNeed(pattern, coverage, demandArr, patternType) {
     let gain = 0;
-    let oversupplyRisk = 0;
+    let oversupply = 0;
     let offDemandPenalty = 0;
 
     for (let i = 0; i < 7; i++) {
-      if (pattern.work[i] === 1) {
-        gain += Math.min(1, Math.max(0, remaining[i]));
-        if (remaining[i] <= 0) oversupplyRisk += 1;
-      } else {
-        offDemandPenalty += demand[i];
+      const next = coverage[i] + pattern.work[i];
+      const needBefore = Math.max(0, demandArr[i] - coverage[i]);
+      const needAfter = Math.max(0, demandArr[i] - next);
+
+      gain += (needBefore - needAfter);
+
+      if (coverage[i] >= demandArr[i] && pattern.work[i] === 1) {
+        oversupply += 1;
+      }
+
+      if (pattern.work[i] === 0) {
+        offDemandPenalty += demandArr[i];
       }
     }
 
-    let patternPreference = 0;
+    let preference = 0;
 
     if (patternType === "continuous") {
-      const hasWeekendOff =
-        pattern.offIdxs.includes(5) || pattern.offIdxs.includes(6);
-      if (hasWeekendOff) patternPreference += 0.5;
+      const satSunOff =
+        pattern.offIdxs.length === 2 &&
+        pattern.offIdxs.includes(5) &&
+        pattern.offIdxs.includes(6);
+
+      const sunMonOff =
+        pattern.offIdxs.length === 2 &&
+        pattern.offIdxs.includes(6) &&
+        pattern.offIdxs.includes(0);
+
+      if (satSunOff) preference += 1.5;
+      if (sunMonOff) preference += 0.5;
     }
 
     if (patternType === "best") {
-      patternPreference += (20 - offDemandPenalty) / 100;
+      preference += (30 - offDemandPenalty) / 100;
     }
 
-    return (gain * 100) - (oversupplyRisk * 25) + patternPreference;
+    return (gain * 100) - (oversupply * 15) + preference;
   }
 
-  function greedyBuildSolution(patterns, demand, patternType) {
-    let remaining = DAYS.map(day => demand[day] || 0);
+  function greedyInitialSolution(patterns, demandArr, patternType) {
     const chosen = [];
-
+    let coverage = Array(7).fill(0);
     let safety = 0;
-    while (!isSolved(remaining) && safety < 500) {
+
+    while (safety < 500) {
       safety++;
+
+      const evalNow = evaluateCoverage(coverage, demandArr);
+      if (evalNow.under === 0) break;
 
       let bestIdx = -1;
       let bestScore = -Infinity;
 
       for (let i = 0; i < patterns.length; i++) {
-        const score = scorePattern(patterns[i], remaining, remaining, patternType);
-        if (score > bestScore) {
-          bestScore = score;
+        const s = scorePatternAgainstNeed(patterns[i], coverage, demandArr, patternType);
+        if (s > bestScore) {
+          bestScore = s;
           bestIdx = i;
         }
       }
@@ -607,29 +630,85 @@
       if (bestIdx === -1) break;
 
       chosen.push(bestIdx);
-      remaining = remaining.map((v, i) => v - patterns[bestIdx].work[i]);
+      for (let d = 0; d < 7; d++) {
+        coverage[d] += patterns[bestIdx].work[d];
+      }
     }
 
-    // remove redundant patterns if possible
-    let changed = true;
-    while (changed) {
-      changed = false;
+    return chosen;
+  }
 
+  function improveSolution(patterns, chosen, demandArr, patternType) {
+    let improved = true;
+
+    while (improved) {
+      improved = false;
+
+      let currentCoverage = getCoverageFromChosen(patterns, chosen);
+      let currentEval = evaluateCoverage(currentCoverage, demandArr);
+
+      // try removing one pattern
       for (let i = 0; i < chosen.length; i++) {
-        const testChosen = chosen.slice(0, i).concat(chosen.slice(i + 1));
-        const coverage = Array(7).fill(0);
+        const trial = chosen.slice(0, i).concat(chosen.slice(i + 1));
+        const trialCoverage = getCoverageFromChosen(patterns, trial);
+        const trialEval = evaluateCoverage(trialCoverage, demandArr);
 
-        testChosen.forEach(idx => {
-          for (let d = 0; d < 7; d++) {
-            coverage[d] += patterns[idx].work[d];
-          }
-        });
-
-        const stillValid = DAYS.every((_, d) => coverage[d] >= demand[DAYS[d]]);
-        if (stillValid) {
-          chosen.splice(i, 1);
-          changed = true;
+        if (
+          trialEval.score < currentEval.score ||
+          (trialEval.score === currentEval.score && trial.length < chosen.length)
+        ) {
+          chosen = trial;
+          improved = true;
           break;
+        }
+      }
+
+      if (improved) continue;
+
+      // try replacing one pattern
+      for (let i = 0; i < chosen.length; i++) {
+        for (let p = 0; p < patterns.length; p++) {
+          if (chosen[i] === p) continue;
+
+          const trial = chosen.slice();
+          trial[i] = p;
+
+          const trialCoverage = getCoverageFromChosen(patterns, trial);
+          const trialEval = evaluateCoverage(trialCoverage, demandArr);
+
+          if (
+            trialEval.score < currentEval.score ||
+            (trialEval.score === currentEval.score && trial.length <= chosen.length)
+          ) {
+            chosen = trial;
+            improved = true;
+            break;
+          }
+        }
+        if (improved) break;
+      }
+
+      if (improved) continue;
+
+      // if still undercovered, add one more best pattern
+      currentCoverage = getCoverageFromChosen(patterns, chosen);
+      currentEval = evaluateCoverage(currentCoverage, demandArr);
+
+      if (currentEval.under > 0) {
+        let bestIdx = -1;
+        let bestScore = -Infinity;
+
+        for (let i = 0; i < patterns.length; i++) {
+          const s = scorePatternAgainstNeed(patterns[i], currentCoverage, demandArr, patternType);
+          if (s > bestScore) {
+            bestScore = s;
+            bestIdx = i;
+          }
+        }
+
+        if (bestIdx !== -1) {
+          chosen.push(bestIdx);
+          improved = true;
         }
       }
     }
@@ -637,68 +716,12 @@
     return chosen;
   }
 
-  function solveDemandFirst(patterns, demand, workDays, patternType) {
-    const demandArr = DAYS.map(day => demand[day] || 0);
-    const greedy = greedyBuildSolution(patterns, demandArr, patternType);
-
-    let bestSolution = greedy.slice();
-    let bestCount = greedy.length;
-
-    const memo = new Map();
-    let nodes = 0;
-    const maxNodes = 120000;
-
-    function dfs(remaining, chosen) {
-      nodes++;
-      if (nodes > maxNodes) return;
-
-      remaining = normalizeRemaining(remaining);
-
-      if (isSolved(remaining)) {
-        if (chosen.length < bestCount) {
-          bestCount = chosen.length;
-          bestSolution = chosen.slice();
-        }
-        return;
-      }
-
-      const lowerBound = Math.ceil(sumArray(remaining) / workDays);
-      if (chosen.length + lowerBound >= bestCount) return;
-
-      const key = remainingKey(remaining);
-      const prevDepth = memo.get(key);
-      if (prevDepth !== undefined && prevDepth <= chosen.length) return;
-      memo.set(key, chosen.length);
-
-      const candidates = patterns
-        .map((pattern, idx) => ({
-          idx,
-          score: scorePattern(pattern, remaining, demandArr, patternType)
-        }))
-        .filter(x => x.score > 0)
-        .sort((a, b) => b.score - a.score);
-
-      for (const candidate of candidates) {
-        const pattern = patterns[candidate.idx];
-        const nextRemaining = remaining.map((v, i) => v - pattern.work[i]);
-
-        chosen.push(candidate.idx);
-        dfs(nextRemaining, chosen);
-        chosen.pop();
-      }
-    }
-
-    dfs(demandArr, []);
-
-    return bestSolution;
-  }
-
-  function buildRosterRowsFromSolution(solutionIdxs, patterns, reserveHC) {
+  function buildRosterRowsFromChosen(patterns, chosen, reserveHC) {
     const rows = [];
 
-    solutionIdxs.forEach((patternIdx, index) => {
+    chosen.forEach((patternIdx, idx) => {
       const pattern = patterns[patternIdx];
-      const row = { Agent: `Agent ${index + 1}` };
+      const row = { Agent: `Agent ${idx + 1}` };
 
       DAYS.forEach((day, d) => {
         row[day] = pattern.work[d] === 1 ? "W" : "OFF";
@@ -724,19 +747,13 @@
     return rows;
   }
 
-  function buildCoverageFromSolution(solutionIdxs, patterns, demand) {
-    const scheduled = Array(7).fill(0);
-
-    solutionIdxs.forEach(idx => {
-      for (let d = 0; d < 7; d++) {
-        scheduled[d] += patterns[idx].work[d];
-      }
-    });
+  function buildCoverageRowsFromChosen(patterns, chosen, demand) {
+    const coverage = getCoverageFromChosen(patterns, chosen);
 
     return DAYS.map((day, d) => ({
       Day: day,
       "Required HC": demand[day] || 0,
-      "Scheduled HC": scheduled[d]
+      "Scheduled HC": coverage[d]
     }));
   }
 
@@ -750,15 +767,39 @@
     const patternType = document.getElementById("weekOffPattern").value;
     const bufferHC = Number(document.getElementById("bufferHC").value || 0);
     const demand = getDemandInputs();
+    const demandArr = DAYS.map(day => demand[day] || 0);
 
     generatedRosterRows = [];
     generatedCoverageRows = [];
     summaryRows = [];
 
     const patterns = getAllowedPatterns(workDays, patternType);
-    const solutionIdxs = solveDemandFirst(patterns, demand, workDays, patternType);
 
-    const activeHC = solutionIdxs.length;
+    let chosen = greedyInitialSolution(patterns, demandArr, patternType);
+    chosen = improveSolution(patterns, chosen, demandArr, patternType);
+
+    // final safety: if still undercovered, keep adding best-fit patterns
+    let safety = 0;
+    while (safety < 200) {
+      safety++;
+      const coverage = getCoverageFromChosen(patterns, chosen);
+      const evalNow = evaluateCoverage(coverage, demandArr);
+      if (evalNow.under === 0) break;
+
+      let bestIdx = -1;
+      let bestScore = -Infinity;
+      for (let i = 0; i < patterns.length; i++) {
+        const s = scorePatternAgainstNeed(patterns[i], coverage, demandArr, patternType);
+        if (s > bestScore) {
+          bestScore = s;
+          bestIdx = i;
+        }
+      }
+      if (bestIdx === -1) break;
+      chosen.push(bestIdx);
+    }
+
+    const activeHC = chosen.length;
     const finalHC = activeHC + bufferHC;
     const reserveHC = bufferHC;
 
@@ -766,11 +807,11 @@
       workDays,
       weeklyDemand: getWeeklyDemand(demand),
       minHC: activeHC,
-      finalHC: finalHC
+      finalHC
     };
 
-    generatedRosterRows = buildRosterRowsFromSolution(solutionIdxs, patterns, reserveHC);
-    generatedCoverageRows = buildCoverageFromSolution(solutionIdxs, patterns, demand);
+    generatedRosterRows = buildRosterRowsFromChosen(patterns, chosen, reserveHC);
+    generatedCoverageRows = buildCoverageRowsFromChosen(patterns, chosen, demand);
 
     summaryRows.push({
       "Weekly Demand": selectedScenario.weeklyDemand,
@@ -840,9 +881,13 @@
       r => r["Required HC"] === r["Scheduled HC"]
     ).length;
 
+    const mismatchDays = generatedCoverageRows
+      .filter(r => r["Required HC"] !== r["Scheduled HC"])
+      .map(r => `${r.Day} (${r["Scheduled HC"]}/${r["Required HC"]})`);
+
     let insight = `
       Total weekly demand is ${selectedScenario.weeklyDemand} agent-days.<br><br>
-      The planner first created schedules to meet required HC day by day, then counted how many agents were needed.<br><br>
+      The planner first built schedules to cover required HC day by day, then counted how many agents were needed.<br><br>
       Active HC required is ${activeHC}. Buffer / reserve HC is ${reserveHC}. Final HC target is ${selectedScenario.finalHC}.<br><br>
       Exact daily coverage was achieved on ${exactDays} out of 7 days.<br><br>
     `;
@@ -850,7 +895,7 @@
     if (exactDays === 7) {
       insight += `The generated schedule matches required HC exactly across the full week.`;
     } else {
-      insight += `Some mismatch remains. Try a different work pattern or increase flexibility in the off-day pattern.`;
+      insight += `Best achievable fit was generated. Mismatch remains on: ${mismatchDays.join(", ")}.`;
     }
 
     document.getElementById("plannerInsight").innerHTML = insight;
