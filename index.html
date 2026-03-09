@@ -396,391 +396,386 @@
   </div>
 
   <script>
-    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const DAY_INDEX = { Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6 };
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-    let scenarioResults = {};
-    let selectedScenario = null;
-    let generatedRosterRows = [];
-    let generatedCoverageRows = [];
-    let summaryRows = [];
+  let scenarioResults = {};
+  let selectedScenario = null;
+  let generatedRosterRows = [];
+  let generatedCoverageRows = [];
+  let summaryRows = [];
 
-    function getDemandInputs() {
-      return {
-        Mon: Number(document.getElementById("mon").value || 0),
-        Tue: Number(document.getElementById("tue").value || 0),
-        Wed: Number(document.getElementById("wed").value || 0),
-        Thu: Number(document.getElementById("thu").value || 0),
-        Fri: Number(document.getElementById("fri").value || 0),
-        Sat: Number(document.getElementById("sat").value || 0),
-        Sun: Number(document.getElementById("sun").value || 0)
+  function getDemandInputs() {
+    return {
+      Mon: Number(document.getElementById("mon").value || 0),
+      Tue: Number(document.getElementById("tue").value || 0),
+      Wed: Number(document.getElementById("wed").value || 0),
+      Thu: Number(document.getElementById("thu").value || 0),
+      Fri: Number(document.getElementById("fri").value || 0),
+      Sat: Number(document.getElementById("sat").value || 0),
+      Sun: Number(document.getElementById("sun").value || 0)
+    };
+  }
+
+  function loadExample() {
+    document.getElementById("mon").value = 15;
+    document.getElementById("tue").value = 15;
+    document.getElementById("wed").value = 15;
+    document.getElementById("thu").value = 15;
+    document.getElementById("fri").value = 15;
+    document.getElementById("sat").value = 5;
+    document.getElementById("sun").value = 5;
+  }
+
+  function getWeeklyDemand(demand) {
+    return DAYS.reduce((sum, day) => sum + Number(demand[day] || 0), 0);
+  }
+
+  function getScenarioNote(workDays) {
+    if (workDays === 5) return "Best balance";
+    if (workDays === 6) return "Lower HC need";
+    return "Full-week work pattern";
+  }
+
+  function calculateScenarios() {
+    const demand = getDemandInputs();
+    const weeklyDemand = getWeeklyDemand(demand);
+    const buffer = Number(document.getElementById("bufferHC").value || 0);
+
+    scenarioResults = {};
+
+    [5, 6, 7].forEach(workDays => {
+      const minHC = Math.ceil(weeklyDemand / workDays);
+      const finalHC = minHC + buffer;
+
+      scenarioResults[workDays] = {
+        workDays,
+        weeklyDemand,
+        minHC,
+        finalHC,
+        note: getScenarioNote(workDays)
       };
+    });
+
+    renderComparisonTable();
+    document.getElementById("weeklyDemandBox").innerText = `Weekly Demand: ${weeklyDemand} agent-days`;
+    document.getElementById("comparisonSection").classList.remove("hidden");
+
+    document.querySelectorAll('input[name="scenario"]').forEach(r => r.checked = false);
+
+    document.getElementById("summarySection").classList.add("hidden");
+    document.getElementById("rosterSection").classList.add("hidden");
+    document.getElementById("coverageSection").classList.add("hidden");
+    document.getElementById("insightSection").classList.add("hidden");
+    document.getElementById("exportSection").classList.add("hidden");
+  }
+
+  function renderComparisonTable() {
+    const tbody = document.querySelector("#comparisonTable tbody");
+    tbody.innerHTML = "";
+
+    [5, 6, 7].forEach(workDays => {
+      const s = scenarioResults[workDays];
+      tbody.innerHTML += `
+        <tr>
+          <td>${s.workDays} Days</td>
+          <td>${s.minHC}</td>
+          <td>${s.finalHC}</td>
+          <td>${s.note}</td>
+        </tr>
+      `;
+    });
+  }
+
+  function getSelectedScenarioValue() {
+    const checked = document.querySelector('input[name="scenario"]:checked');
+    return checked ? Number(checked.value) : null;
+  }
+
+  function getOffCombos(workDays, pattern) {
+    const offDays = 7 - workDays;
+    if (offDays <= 0) return [[]];
+
+    const combos = [];
+
+    if (offDays === 1) {
+      for (let i = 0; i < 7; i++) combos.push([i]);
+      return combos;
     }
 
-    function loadExample() {
-      document.getElementById("mon").value = 15;
-      document.getElementById("tue").value = 15;
-      document.getElementById("wed").value = 15;
-      document.getElementById("thu").value = 15;
-      document.getElementById("fri").value = 15;
-      document.getElementById("sat").value = 5;
-      document.getElementById("sun").value = 5;
+    if (offDays === 2) {
+      const continuous = [];
+      const split = [];
+
+      for (let i = 0; i < 7; i++) {
+        continuous.push([i, (i + 1) % 7]);
+      }
+
+      for (let i = 0; i < 7; i++) {
+        for (let j = i + 1; j < 7; j++) {
+          const adjacent = (j === i + 1) || (i === 0 && j === 6);
+          if (!adjacent) split.push([i, j]);
+        }
+      }
+
+      if (pattern === "continuous") return continuous;
+      if (pattern === "split") return split;
+      return continuous.concat(split);
     }
 
-    function getWeeklyDemand(demand) {
-      return DAYS.reduce((sum, day) => sum + Number(demand[day] || 0), 0);
+    return [[]];
+  }
+
+  function comboPenalty(combo, demand, coverage, pattern) {
+    let penalty = 0;
+
+    // Build projected schedule from this combo
+    DAYS.forEach((day, idx) => {
+      const works = !combo.includes(idx);
+      const projected = coverage[day] + (works ? 1 : 0);
+      const req = demand[day] || 0;
+
+      if (projected > req) {
+        penalty += (projected - req) * 10;
+      }
+    });
+
+    // Soft preference rules
+    const weekendOffCount =
+      (combo.includes(5) ? 1 : 0) +
+      (combo.includes(6) ? 1 : 0);
+
+    if (pattern === "best") {
+      // prefer placing OFF on low demand days
+      penalty += combo.reduce((sum, idx) => sum + (demand[DAYS[idx]] || 0), 0);
     }
 
-    function getScenarioNote(workDays) {
-      if (workDays === 5) return "Best balance";
-      if (workDays === 6) return "Lower HC need";
-      return "Full-week work pattern";
+    if (pattern === "continuous") {
+      // slight preference for Sat-Sun and Sun-Mon if weekend demand is lower
+      if ((combo[0] === 5 && combo[1] === 6) || (combo[0] === 6 && combo[1] === 0)) {
+        penalty -= 2;
+      }
+      penalty -= weekendOffCount;
     }
 
-    function calculateScenarios() {
-      const demand = getDemandInputs();
-      const weeklyDemand = getWeeklyDemand(demand);
-      const buffer = Number(document.getElementById("bufferHC").value || 0);
+    if (pattern === "split") {
+      penalty -= weekendOffCount;
+    }
 
-      scenarioResults = {};
+    return penalty;
+  }
 
-      [5, 6, 7].forEach(workDays => {
-        const minHC = Math.ceil(weeklyDemand / workDays);
-        const finalHC = minHC + buffer;
+  function buildRoster(activeHC, workDays, demand, pattern) {
+    const offCombos = getOffCombos(workDays, pattern);
+    const agents = [];
+    const coverage = { Mon:0, Tue:0, Wed:0, Thu:0, Fri:0, Sat:0, Sun:0 };
 
-        scenarioResults[workDays] = {
-          workDays,
-          weeklyDemand,
-          minHC,
-          finalHC,
-          note: getScenarioNote(workDays)
-        };
+    for (let i = 0; i < activeHC; i++) {
+      let bestCombo = null;
+      let bestPenalty = Infinity;
+
+      offCombos.forEach(combo => {
+        const p = comboPenalty(combo, demand, coverage, pattern);
+        if (p < bestPenalty) {
+          bestPenalty = p;
+          bestCombo = combo;
+        }
       });
 
-      renderComparisonTable();
-      document.getElementById("weeklyDemandBox").innerText = `Weekly Demand: ${weeklyDemand} agent-days`;
-      document.getElementById("comparisonSection").classList.remove("hidden");
-
-      document.querySelectorAll('input[name="scenario"]').forEach(r => r.checked = false);
-
-      document.getElementById("summarySection").classList.add("hidden");
-      document.getElementById("rosterSection").classList.add("hidden");
-      document.getElementById("coverageSection").classList.add("hidden");
-      document.getElementById("insightSection").classList.add("hidden");
-      document.getElementById("exportSection").classList.add("hidden");
-    }
-
-    function renderComparisonTable() {
-      const tbody = document.querySelector("#comparisonTable tbody");
-      tbody.innerHTML = "";
-
-      [5, 6, 7].forEach(workDays => {
-        const s = scenarioResults[workDays];
-        tbody.innerHTML += `
-          <tr>
-            <td>${s.workDays} Days</td>
-            <td>${s.minHC}</td>
-            <td>${s.finalHC}</td>
-            <td>${s.note}</td>
-          </tr>
-        `;
-      });
-    }
-
-    function getSelectedScenarioValue() {
-      const checked = document.querySelector('input[name="scenario"]:checked');
-      return checked ? Number(checked.value) : null;
-    }
-
-    function createAgents(agentCount, workDays) {
-      return Array.from({ length: agentCount }, (_, i) => ({
-        id: i + 1,
-        assignedDays: [],
-        remaining: workDays,
-        roster: {
-          Mon: "OFF",
-          Tue: "OFF",
-          Wed: "OFF",
-          Thu: "OFF",
-          Fri: "OFF",
-          Sat: "OFF",
-          Sun: "OFF"
-        },
-        reserve: false
-      }));
-    }
-
-    function getLastWorkedIndex(agent) {
-      if (!agent.assignedDays.length) return -999;
-      return Math.max(...agent.assignedDays.map(d => DAY_INDEX[d]));
-    }
-
-    function getWorkedYesterday(agent, dayIdx) {
-      return agent.assignedDays.some(d => DAY_INDEX[d] === dayIdx - 1);
-    }
-
-    function getWorkedWeekend(agent) {
-      return agent.assignedDays.includes("Sat") || agent.assignedDays.includes("Sun");
-    }
-
-    function chooseAgentsForDay(agents, day, required, pattern) {
-      const dayIdx = DAY_INDEX[day];
-
-      const candidates = agents.filter(a => a.remaining > 0);
-
-      candidates.sort((a, b) => {
-        const aAssigned = a.assignedDays.length;
-        const bAssigned = b.assignedDays.length;
-
-        if (aAssigned !== bAssigned) return aAssigned - bAssigned;
-
-        const aWorkedYesterday = getWorkedYesterday(a, dayIdx) ? 1 : 0;
-        const bWorkedYesterday = getWorkedYesterday(b, dayIdx) ? 1 : 0;
-
-        if (pattern === "continuous") {
-          if (aWorkedYesterday !== bWorkedYesterday) return bWorkedYesterday - aWorkedYesterday;
-        }
-
-        if (pattern === "split") {
-          if (aWorkedYesterday !== bWorkedYesterday) return aWorkedYesterday - bWorkedYesterday;
-        }
-
-        if (day === "Sun") {
-          const aWeekend = getWorkedWeekend(a) ? 1 : 0;
-          const bWeekend = getWorkedWeekend(b) ? 1 : 0;
-
-          if (pattern === "continuous") {
-            if (aWeekend !== bWeekend) return bWeekend - aWeekend;
-          }
-
-          if (pattern === "split") {
-            if (aWeekend !== bWeekend) return aWeekend - bWeekend;
-          }
-        }
-
-        return a.id - b.id;
-      });
-
-      return candidates.slice(0, required);
-    }
-
-    function buildBaseCoverageRoster(activeHC, workDays, demand, pattern) {
-      const agents = createAgents(activeHC, workDays);
+      const roster = {
+        Agent: `Agent ${i + 1}`,
+        Mon: bestCombo.includes(0) ? "OFF" : "W",
+        Tue: bestCombo.includes(1) ? "OFF" : "W",
+        Wed: bestCombo.includes(2) ? "OFF" : "W",
+        Thu: bestCombo.includes(3) ? "OFF" : "W",
+        Fri: bestCombo.includes(4) ? "OFF" : "W",
+        Sat: bestCombo.includes(5) ? "OFF" : "W",
+        Sun: bestCombo.includes(6) ? "OFF" : "W"
+      };
 
       DAYS.forEach(day => {
-        const required = demand[day] || 0;
-        const selected = chooseAgentsForDay(agents, day, required, pattern);
-
-        selected.forEach(agent => {
-          agent.roster[day] = "W";
-          agent.assignedDays.push(day);
-          agent.remaining -= 1;
-        });
+        if (roster[day] === "W") coverage[day] += 1;
       });
 
-      return agents;
+      agents.push(roster);
     }
 
-    function addReserveAgents(baseAgents, reserveCount) {
-      const reserveAgents = [];
-      const startId = baseAgents.length + 1;
+    return { agents, coverage };
+  }
 
-      for (let i = 0; i < reserveCount; i++) {
-        reserveAgents.push({
-          id: startId + i,
-          assignedDays: [],
-          remaining: 0,
-          reserve: true,
-          roster: {
-            Mon: "RESERVE",
-            Tue: "RESERVE",
-            Wed: "RESERVE",
-            Thu: "RESERVE",
-            Fri: "RESERVE",
-            Sat: "RESERVE",
-            Sun: "RESERVE"
-          }
-        });
-      }
-
-      return baseAgents.concat(reserveAgents);
-    }
-
-    function buildCoverageRows(allAgents, demand) {
-      return DAYS.map(day => {
-        const scheduled = allAgents.reduce((sum, agent) => sum + (agent.roster[day] === "W" ? 1 : 0), 0);
-        return {
-          Day: day,
-          "Required HC": demand[day] || 0,
-          "Scheduled HC": scheduled
-        };
+  function addReserveAgents(rosterRows, reserveCount) {
+    const start = rosterRows.length + 1;
+    for (let i = 0; i < reserveCount; i++) {
+      rosterRows.push({
+        Agent: `Agent ${start + i}`,
+        Mon: "RESERVE",
+        Tue: "RESERVE",
+        Wed: "RESERVE",
+        Thu: "RESERVE",
+        Fri: "RESERVE",
+        Sat: "RESERVE",
+        Sun: "RESERVE"
       });
     }
+    return rosterRows;
+  }
 
-    function generateSchedule() {
-      const workDays = getSelectedScenarioValue();
-      if (!workDays) {
-        alert("Please select a scenario first.");
-        return;
-      }
-
-      selectedScenario = { ...scenarioResults[workDays] };
-
-      const demand = getDemandInputs();
-      const pattern = document.getElementById("weekOffPattern").value;
-
-      generatedRosterRows = [];
-      generatedCoverageRows = [];
-      summaryRows = [];
-
-      const maxDailyReq = Math.max(...DAYS.map(day => demand[day] || 0));
-      const activeHC = Math.max(selectedScenario.minHC, maxDailyReq);
-      const finalHC = Math.max(selectedScenario.finalHC, activeHC);
-      const reserveHC = Math.max(0, finalHC - activeHC);
-
-      const baseAgents = buildBaseCoverageRoster(activeHC, workDays, demand, pattern);
-      const allAgents = addReserveAgents(baseAgents, reserveHC);
-
-      selectedScenario.finalHC = finalHC;
-
-      generatedRosterRows = allAgents.map(agent => ({
-        Agent: `Agent ${agent.id}`,
-        Mon: agent.roster.Mon,
-        Tue: agent.roster.Tue,
-        Wed: agent.roster.Wed,
-        Thu: agent.roster.Thu,
-        Fri: agent.roster.Fri,
-        Sat: agent.roster.Sat,
-        Sun: agent.roster.Sun
-      }));
-
-      generatedCoverageRows = buildCoverageRows(allAgents, demand);
-
-      summaryRows.push({
-        "Weekly Demand": selectedScenario.weeklyDemand,
-        "Work Days Per Agent": selectedScenario.workDays,
-        "Minimum HC": selectedScenario.minHC,
-        "Active HC Used for Coverage": activeHC,
-        "Final HC Target": selectedScenario.finalHC,
-        "Reserve HC": reserveHC,
-        "Week Off Pattern": pattern
-      });
-
-      renderSummary(activeHC, reserveHC);
-      renderRoster();
-      renderCoverage();
-      renderInsight(activeHC, reserveHC);
-
-      document.getElementById("summarySection").classList.remove("hidden");
-      document.getElementById("rosterSection").classList.remove("hidden");
-      document.getElementById("coverageSection").classList.remove("hidden");
-      document.getElementById("insightSection").classList.remove("hidden");
-      document.getElementById("exportSection").classList.remove("hidden");
+  function generateSchedule() {
+    const workDays = getSelectedScenarioValue();
+    if (!workDays) {
+      alert("Please select a scenario first.");
+      return;
     }
 
-    function renderSummary(activeHC, reserveHC) {
-      document.getElementById("kpiWeeklyDemand").innerText = selectedScenario.weeklyDemand;
-      document.getElementById("kpiWorkDays").innerText = selectedScenario.workDays;
-      document.getElementById("kpiMinHC").innerText = selectedScenario.minHC;
-      document.getElementById("kpiFinalHC").innerText = selectedScenario.finalHC;
-    }
+    selectedScenario = { ...scenarioResults[workDays] };
 
-    function renderRoster() {
-      const tbody = document.querySelector("#rosterTable tbody");
-      tbody.innerHTML = "";
+    const demand = getDemandInputs();
+    const pattern = document.getElementById("weekOffPattern").value;
 
-      generatedRosterRows.forEach(r => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${r.Agent}</td>
-            <td>${r.Mon}</td>
-            <td>${r.Tue}</td>
-            <td>${r.Wed}</td>
-            <td>${r.Thu}</td>
-            <td>${r.Fri}</td>
-            <td>${r.Sat}</td>
-            <td>${r.Sun}</td>
-          </tr>
-        `;
-      });
-    }
+    generatedRosterRows = [];
+    generatedCoverageRows = [];
+    summaryRows = [];
 
-    function renderCoverage() {
-      const tbody = document.querySelector("#coverageTable tbody");
-      tbody.innerHTML = "";
+    const maxDailyReq = Math.max(...DAYS.map(day => demand[day] || 0));
+    const activeHC = Math.max(selectedScenario.minHC, maxDailyReq);
+    const finalHC = Math.max(selectedScenario.finalHC, activeHC);
+    const reserveHC = Math.max(0, finalHC - activeHC);
 
-      generatedCoverageRows.forEach(r => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${r.Day}</td>
-            <td>${r["Required HC"]}</td>
-            <td>${r["Scheduled HC"]}</td>
-          </tr>
-        `;
-      });
-    }
+    const rosterBuild = buildRoster(activeHC, workDays, demand, pattern);
+    generatedRosterRows = addReserveAgents(rosterBuild.agents.slice(), reserveHC);
 
-    function renderInsight(activeHC, reserveHC) {
-      const exactDays = generatedCoverageRows.filter(r => r["Required HC"] === r["Scheduled HC"]).length;
+    generatedCoverageRows = DAYS.map(day => ({
+      Day: day,
+      "Required HC": demand[day] || 0,
+      "Scheduled HC": rosterBuild.coverage[day] || 0
+    }));
 
-      let insight = `
-        Total weekly demand is ${selectedScenario.weeklyDemand} agent-days.<br><br>
-        With a ${selectedScenario.workDays}-day work pattern, the minimum headcount required is ${selectedScenario.minHC} agents.<br><br>
-        The planner used ${activeHC} agents for direct day-level coverage and ${reserveHC} agents as reserve/buffer capacity.<br><br>
-        Exact daily coverage was achieved on ${exactDays} out of 7 days.<br><br>
+    selectedScenario.finalHC = finalHC;
+
+    summaryRows.push({
+      "Weekly Demand": selectedScenario.weeklyDemand,
+      "Work Days Per Agent": selectedScenario.workDays,
+      "Minimum HC": selectedScenario.minHC,
+      "Active HC Used for Coverage": activeHC,
+      "Final HC Target": selectedScenario.finalHC,
+      "Reserve HC": reserveHC,
+      "Week Off Pattern": pattern
+    });
+
+    renderSummary();
+    renderRoster();
+    renderCoverage();
+    renderInsight(activeHC, reserveHC);
+
+    document.getElementById("summarySection").classList.remove("hidden");
+    document.getElementById("rosterSection").classList.remove("hidden");
+    document.getElementById("coverageSection").classList.remove("hidden");
+    document.getElementById("insightSection").classList.remove("hidden");
+    document.getElementById("exportSection").classList.remove("hidden");
+  }
+
+  function renderSummary() {
+    document.getElementById("kpiWeeklyDemand").innerText = selectedScenario.weeklyDemand;
+    document.getElementById("kpiWorkDays").innerText = selectedScenario.workDays;
+    document.getElementById("kpiMinHC").innerText = selectedScenario.minHC;
+    document.getElementById("kpiFinalHC").innerText = selectedScenario.finalHC;
+  }
+
+  function renderRoster() {
+    const tbody = document.querySelector("#rosterTable tbody");
+    tbody.innerHTML = "";
+
+    generatedRosterRows.forEach(r => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${r.Agent}</td>
+          <td>${r.Mon}</td>
+          <td>${r.Tue}</td>
+          <td>${r.Wed}</td>
+          <td>${r.Thu}</td>
+          <td>${r.Fri}</td>
+          <td>${r.Sat}</td>
+          <td>${r.Sun}</td>
+        </tr>
       `;
+    });
+  }
 
-      if (exactDays === 7) {
-        insight += `The generated schedule matches required HC exactly across the full week.`;
-      } else {
-        insight += `Some mismatch remains. In that case, increase the buffer or choose a different work pattern.`;
-      }
+  function renderCoverage() {
+    const tbody = document.querySelector("#coverageTable tbody");
+    tbody.innerHTML = "";
 
-      document.getElementById("plannerInsight").innerHTML = insight;
+    generatedCoverageRows.forEach(r => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${r.Day}</td>
+          <td>${r["Required HC"]}</td>
+          <td>${r["Scheduled HC"]}</td>
+        </tr>
+      `;
+    });
+  }
+
+  function renderInsight(activeHC, reserveHC) {
+    const exactDays = generatedCoverageRows.filter(r => r["Required HC"] === r["Scheduled HC"]).length;
+
+    let insight = `
+      Total weekly demand is ${selectedScenario.weeklyDemand} agent-days.<br><br>
+      With a ${selectedScenario.workDays}-day work pattern, the minimum headcount required is ${selectedScenario.minHC} agents.<br><br>
+      The planner used ${activeHC} agents for direct day-level coverage and ${reserveHC} agents as reserve/buffer capacity.<br><br>
+      Exact daily coverage was achieved on ${exactDays} out of 7 days.<br><br>
+    `;
+
+    if (exactDays === 7) {
+      insight += `The generated schedule matches required HC exactly across the full week.`;
+    } else {
+      insight += `Some mismatch remains. In that case, increase the buffer or choose a different work pattern.`;
     }
 
-    function rowsToCSV(rows) {
-      if (!rows.length) return "";
-      const headers = Object.keys(rows[0]);
-      const lines = [
-        headers.join(","),
-        ...rows.map(r => headers.map(h => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(","))
-      ];
-      return lines.join("\n");
-    }
+    document.getElementById("plannerInsight").innerHTML = insight;
+  }
 
-    function downloadTextFile(content, fileName) {
-      const blob = new Blob([content], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }
+  function rowsToCSV(rows) {
+    if (!rows.length) return "";
+    const headers = Object.keys(rows[0]);
+    const lines = [
+      headers.join(","),
+      ...rows.map(r => headers.map(h => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(","))
+    ];
+    return lines.join("\n");
+  }
 
-    function downloadWeeklySchedule() {
-      if (!generatedRosterRows.length) {
-        alert("Generate a schedule first.");
-        return;
-      }
-      downloadTextFile(rowsToCSV(generatedRosterRows), "weekly_staffing_schedule.csv");
-    }
+  function downloadTextFile(content, fileName) {
+    const blob = new Blob([content], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
-    function downloadCoverageTable() {
-      if (!generatedCoverageRows.length) {
-        alert("Generate a schedule first.");
-        return;
-      }
-      downloadTextFile(rowsToCSV(generatedCoverageRows), "weekly_staffing_coverage.csv");
+  function downloadWeeklySchedule() {
+    if (!generatedRosterRows.length) {
+      alert("Generate a schedule first.");
+      return;
     }
+    downloadTextFile(rowsToCSV(generatedRosterRows), "weekly_staffing_schedule.csv");
+  }
 
-    function downloadScenarioSummary() {
-      if (!summaryRows.length) {
-        alert("Generate a schedule first.");
-        return;
-      }
-      downloadTextFile(rowsToCSV(summaryRows), "weekly_staffing_summary.csv");
+  function downloadCoverageTable() {
+    if (!generatedCoverageRows.length) {
+      alert("Generate a schedule first.");
+      return;
     }
-  </script>
+    downloadTextFile(rowsToCSV(generatedCoverageRows), "weekly_staffing_coverage.csv");
+  }
+
+  function downloadScenarioSummary() {
+    if (!summaryRows.length) {
+      alert("Generate a schedule first.");
+      return;
+    }
+    downloadTextFile(rowsToCSV(summaryRows), "weekly_staffing_summary.csv");
+  }
+</script>
 </body>
 </html>
