@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Staffing Scenario Planner</title>
+
+  <style>
+    body{
+      font-family:Arial, sans-serif;
+      background:#f4f7fb;
+      margin:40px;
+      color:#111827;
+    }
+
+    h1{
+      text-align:center;
+      margin-bottom:10px;
+    }
+
+    h2,h3{
+      margin-top:0;
+    }
+
+    .subtitle{
+      text-align:center;
+      color:#475569;
+      margin-bottom:30px;
+    }
+
+    .section{
+      background:white;
+      padding:20px;
+      margin-bottom:25px;
+      border-radius:10px;
+      box-shadow:0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    .field-grid{
+      display:grid;
+      grid-template-columns:repeat(7, minmax(100px, 1fr));
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .settings-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(220px, 1fr));
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(160px, 1fr));
+      gap:12px;
+      margin-top:15px;
+    }
+
+    .kpi-card{
+      background:#f8fafc;
+      border:1px solid #e2e8f0;
+      padding:14px;
+      border-radius:10px;
+    }
+
+    .kpi-title{
+      font-size:12px;
+      color:#475569;
+      margin-bottom:6px;
+      font-weight:bold;
+    }
+
+    .kpi-value{
+      font-size:24px;
+      font-weight:bold;
+      color:#0f172a;
+      margin-bottom:6px;
+    }
+
+    .kpi-note{
+      font-size:12px;
+      color:#64748b;
+      line-height:1.4;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:5px;
+    }
+
+    label{
+      font-size:13px;
+      color:#334155;
+      font-weight:bold;
+    }
+
+    input, select{
+      padding:8px;
+      border:1px solid #cbd5e1;
+      border-radius:5px;
+      font-size:14px;
+      background:#fff;
+    }
+
+    button{
+      padding:10px 16px;
+      background:#2c7be5;
+      color:white;
+      border:none;
+      border-radius:5px;
+      cursor:pointer;
+      font-size:14px;
+    }
+
+    button:hover{
+      background:#1f6ad0;
+    }
+
+    .button-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:18px;
+    }
+
+    .helper{
+      background:#eef6ff;
+      padding:12px;
+      border-radius:8px;
+      margin-top:10px;
+      margin-bottom:10px;
+      line-height:1.5;
+      font-size:14px;
+    }
+
+    .result-box{
+      margin-top:12px;
+      padding:14px;
+      border-radius:8px;
+      background:#f8fafc;
+      border:1px solid #e2e8f0;
+      min-height:20px;
+      line-height:1.6;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+
+    th,td{
+      border:1px solid #ddd;
+      padding:8px;
+      text-align:center;
+      white-space:nowrap;
+    }
+
+    th{
+      background:#eef2f7;
+      position:sticky;
+      top:0;
+      z-index:2;
+    }
+
+    .table-scroll{
+      margin-top:15px;
+      max-height:620px;
+      overflow:auto;
+      border:1px solid #e5e7eb;
+      border-radius:8px;
+    }
+
+    .hidden{
+      display:none;
+    }
+
+    .scenario-choice{
+      display:flex;
+      gap:18px;
+      flex-wrap:wrap;
+      margin-top:14px;
+    }
+
+    .scenario-choice label{
+      font-weight:normal;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      background:#f8fafc;
+      padding:10px 12px;
+      border:1px solid #e2e8f0;
+      border-radius:8px;
+      cursor:pointer;
+    }
+
+    .legend{
+      margin-top:10px;
+      font-size:13px;
+      color:#64748b;
+    }
+
+    @media(max-width:1100px){
+      .field-grid,
+      .settings-grid,
+      .kpi-grid{
+        grid-template-columns:1fr;
+      }
+
+      body{
+        margin:20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Weekly Staffing Scenario Planner</h1>
+  <div class="subtitle">
+    Plan fixed-shift staffing using day-level demand. Estimate required headcount and generate weekly schedules instantly.
+  </div>
+
+  <div class="section">
+    <h2>Daily HC Requirement</h2>
+
+    <div class="helper">
+      Enter required headcount for each day. The planner compares 5-day, 6-day, and 7-day work patterns, then generates a simple weekly schedule.
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label for="mon">Mon</label>
+        <input id="mon" type="number" min="0" value="15">
+      </div>
+      <div class="field">
+        <label for="tue">Tue</label>
+        <input id="tue" type="number" min="0" value="15">
+      </div>
+      <div class="field">
+        <label for="wed">Wed</label>
+        <input id="wed" type="number" min="0" value="15">
+      </div>
+      <div class="field">
+        <label for="thu">Thu</label>
+        <input id="thu" type="number" min="0" value="15">
+      </div>
+      <div class="field">
+        <label for="fri">Fri</label>
+        <input id="fri" type="number" min="0" value="15">
+      </div>
+      <div class="field">
+        <label for="sat">Sat</label>
+        <input id="sat" type="number" min="0" value="5">
+      </div>
+      <div class="field">
+        <label for="sun">Sun</label>
+        <input id="sun" type="number" min="0" value="5">
+      </div>
+    </div>
+
+    <div class="settings-grid">
+      <div class="field">
+        <label for="weekOffPattern">Week Off Pattern</label>
+        <select id="weekOffPattern">
+          <option value="best" selected>Best Fit</option>
+          <option value="continuous">Continuous</option>
+          <option value="split">Split</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="bufferHC">Planning Buffer (HC)</label>
+        <select id="bufferHC">
+          <option value="0">0</option>
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="button-row">
+      <button type="button" onclick="loadExample()">Load Example</button>
+      <button type="button" onclick="calculateScenarios()">Calculate Scenario</button>
+    </div>
+  </div>
+
+  <div class="section hidden" id="comparisonSection">
+    <h2>Scenario Comparison</h2>
+    <div class="result-box" id="weeklyDemandBox">Weekly Demand: 0 agent-days</div>
+
+    <div class="table-scroll">
+      <table id="comparisonTable">
+        <thead>
+          <tr>
+            <th>Work Pattern</th>
+            <th>Minimum HC</th>
+            <th>Final HC Target</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:20px;">Select Scenario</h3>
+    <div class="scenario-choice">
+      <label><input type="radio" name="scenario" value="5"> 5-Day Work Pattern</label>
+      <label><input type="radio" name="scenario" value="6"> 6-Day Work Pattern</label>
+      <label><input type="radio" name="scenario" value="7"> 7-Day Work Pattern</label>
+    </div>
+
+    <div class="button-row">
+      <button type="button" onclick="generateSchedule()">Generate Schedule</button>
+    </div>
+  </div>
+
+  <div class="section hidden" id="summarySection">
+    <h2>HC Summary</h2>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">Weekly Demand</div>
+        <div class="kpi-value" id="kpiWeeklyDemand">0</div>
+        <div class="kpi-note">Total required agent-days across the week.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Work Days / Agent</div>
+        <div class="kpi-value" id="kpiWorkDays">0</div>
+        <div class="kpi-note">Selected work pattern for each agent.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Minimum HC</div>
+        <div class="kpi-value" id="kpiMinHC">0</div>
+        <div class="kpi-note">Rounded up weekly demand divided by work days.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Final HC Target</div>
+        <div class="kpi-value" id="kpiFinalHC">0</div>
+        <div class="kpi-note">Minimum HC plus the selected planning buffer.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section hidden" id="rosterSection">
+    <h2>Generated Weekly Schedule</h2>
+    <div class="table-scroll">
+      <table id="rosterTable">
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Mon</th>
+            <th>Tue</th>
+            <th>Wed</th>
+            <th>Thu</th>
+            <th>Fri</th>
+            <th>Sat</th>
+            <th>Sun</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="legend">W = Working | OFF = Off Day | RESERVE = Buffer agent not used in base coverage</div>
+  </div>
+
+  <div class="section hidden" id="coverageSection">
+    <h2>Coverage by Day</h2>
+    <div class="table-scroll">
+      <table id="coverageTable">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Required HC</th>
+            <th>Scheduled HC</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section hidden" id="insightSection">
+    <h2>Planner Insight</h2>
+    <div id="plannerInsight" class="result-box">Run the scenario to see planning insight.</div>
+  </div>
+
+  <div class="section hidden" id="exportSection">
+    <h2>Export Outputs</h2>
+    <div class="button-row">
+      <button type="button" onclick="downloadWeeklySchedule()">Download Weekly Schedule</button>
+      <button type="button" onclick="downloadCoverageTable()">Download Coverage Table</button>
+      <button type="button" onclick="downloadScenarioSummary()">Download Scenario Summary</button>
+    </div>
+  </div>
+
+  <script>
+    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const DAY_INDEX = { Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6 };
+
+    let scenarioResults = {};
+    let selectedScenario = null;
+    let generatedRosterRows = [];
+    let generatedCoverageRows = [];
+    let summaryRows = [];
+
+    function getDemandInputs() {
+      return {
+        Mon: Number(document.getElementById("mon").value || 0),
+        Tue: Number(document.getElementById("tue").value || 0),
+        Wed: Number(document.getElementById("wed").value || 0),
+        Thu: Number(document.getElementById("thu").value || 0),
+        Fri: Number(document.getElementById("fri").value || 0),
+        Sat: Number(document.getElementById("sat").value || 0),
+        Sun: Number(document.getElementById("sun").value || 0)
+      };
+    }
+
+    function loadExample() {
+      document.getElementById("mon").value = 15;
+      document.getElementById("tue").value = 15;
+      document.getElementById("wed").value = 15;
+      document.getElementById("thu").value = 15;
+      document.getElementById("fri").value = 15;
+      document.getElementById("sat").value = 5;
+      document.getElementById("sun").value = 5;
+    }
+
+    function getWeeklyDemand(demand) {
+      return DAYS.reduce((sum, day) => sum + Number(demand[day] || 0), 0);
+    }
+
+    function getScenarioNote(workDays) {
+      if (workDays === 5) return "Best balance";
+      if (workDays === 6) return "Lower HC need";
+      return "Full-week work pattern";
+    }
+
+    function calculateScenarios() {
+      const demand = getDemandInputs();
+      const weeklyDemand = getWeeklyDemand(demand);
+      const buffer = Number(document.getElementById("bufferHC").value || 0);
+
+      scenarioResults = {};
+
+      [5, 6, 7].forEach(workDays => {
+        const minHC = Math.ceil(weeklyDemand / workDays);
+        const finalHC = minHC + buffer;
+
+        scenarioResults[workDays] = {
+          workDays,
+          weeklyDemand,
+          minHC,
+          finalHC,
+          note: getScenarioNote(workDays)
+        };
+      });
+
+      renderComparisonTable();
+      document.getElementById("weeklyDemandBox").innerText = `Weekly Demand: ${weeklyDemand} agent-days`;
+      document.getElementById("comparisonSection").classList.remove("hidden");
+
+      document.querySelectorAll('input[name="scenario"]').forEach(r => r.checked = false);
+
+      document.getElementById("summarySection").classList.add("hidden");
+      document.getElementById("rosterSection").classList.add("hidden");
+      document.getElementById("coverageSection").classList.add("hidden");
+      document.getElementById("insightSection").classList.add("hidden");
+      document.getElementById("exportSection").classList.add("hidden");
+    }
+
+    function renderComparisonTable() {
+      const tbody = document.querySelector("#comparisonTable tbody");
+      tbody.innerHTML = "";
+
+      [5, 6, 7].forEach(workDays => {
+        const s = scenarioResults[workDays];
+        tbody.innerHTML += `
+          <tr>
+            <td>${s.workDays} Days</td>
+            <td>${s.minHC}</td>
+            <td>${s.finalHC}</td>
+            <td>${s.note}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function getSelectedScenarioValue() {
+      const checked = document.querySelector('input[name="scenario"]:checked');
+      return checked ? Number(checked.value) : null;
+    }
+
+    function createAgents(agentCount, workDays) {
+      return Array.from({ length: agentCount }, (_, i) => ({
+        id: i + 1,
+        assignedDays: [],
+        remaining: workDays,
+        roster: {
+          Mon: "OFF",
+          Tue: "OFF",
+          Wed: "OFF",
+          Thu: "OFF",
+          Fri: "OFF",
+          Sat: "OFF",
+          Sun: "OFF"
+        },
+        reserve: false
+      }));
+    }
+
+    function getLastWorkedIndex(agent) {
+      if (!agent.assignedDays.length) return -999;
+      return Math.max(...agent.assignedDays.map(d => DAY_INDEX[d]));
+    }
+
+    function getWorkedYesterday(agent, dayIdx) {
+      return agent.assignedDays.some(d => DAY_INDEX[d] === dayIdx - 1);
+    }
+
+    function getWorkedWeekend(agent) {
+      return agent.assignedDays.includes("Sat") || agent.assignedDays.includes("Sun");
+    }
+
+    function chooseAgentsForDay(agents, day, required, pattern) {
+      const dayIdx = DAY_INDEX[day];
+
+      const candidates = agents.filter(a => a.remaining > 0);
+
+      candidates.sort((a, b) => {
+        const aAssigned = a.assignedDays.length;
+        const bAssigned = b.assignedDays.length;
+
+        if (aAssigned !== bAssigned) return aAssigned - bAssigned;
+
+        const aWorkedYesterday = getWorkedYesterday(a, dayIdx) ? 1 : 0;
+        const bWorkedYesterday = getWorkedYesterday(b, dayIdx) ? 1 : 0;
+
+        if (pattern === "continuous") {
+          if (aWorkedYesterday !== bWorkedYesterday) return bWorkedYesterday - aWorkedYesterday;
+        }
+
+        if (pattern === "split") {
+          if (aWorkedYesterday !== bWorkedYesterday) return aWorkedYesterday - bWorkedYesterday;
+        }
+
+        if (day === "Sun") {
+          const aWeekend = getWorkedWeekend(a) ? 1 : 0;
+          const bWeekend = getWorkedWeekend(b) ? 1 : 0;
+
+          if (pattern === "continuous") {
+            if (aWeekend !== bWeekend) return bWeekend - aWeekend;
+          }
+
+          if (pattern === "split") {
+            if (aWeekend !== bWeekend) return aWeekend - bWeekend;
+          }
+        }
+
+        return a.id - b.id;
+      });
+
+      return candidates.slice(0, required);
+    }
+
+    function buildBaseCoverageRoster(activeHC, workDays, demand, pattern) {
+      const agents = createAgents(activeHC, workDays);
+
+      DAYS.forEach(day => {
+        const required = demand[day] || 0;
+        const selected = chooseAgentsForDay(agents, day, required, pattern);
+
+        selected.forEach(agent => {
+          agent.roster[day] = "W";
+          agent.assignedDays.push(day);
+          agent.remaining -= 1;
+        });
+      });
+
+      return agents;
+    }
+
+    function addReserveAgents(baseAgents, reserveCount) {
+      const reserveAgents = [];
+      const startId = baseAgents.length + 1;
+
+      for (let i = 0; i < reserveCount; i++) {
+        reserveAgents.push({
+          id: startId + i,
+          assignedDays: [],
+          remaining: 0,
+          reserve: true,
+          roster: {
+            Mon: "RESERVE",
+            Tue: "RESERVE",
+            Wed: "RESERVE",
+            Thu: "RESERVE",
+            Fri: "RESERVE",
+            Sat: "RESERVE",
+            Sun: "RESERVE"
+          }
+        });
+      }
+
+      return baseAgents.concat(reserveAgents);
+    }
+
+    function buildCoverageRows(allAgents, demand) {
+      return DAYS.map(day => {
+        const scheduled = allAgents.reduce((sum, agent) => sum + (agent.roster[day] === "W" ? 1 : 0), 0);
+        return {
+          Day: day,
+          "Required HC": demand[day] || 0,
+          "Scheduled HC": scheduled
+        };
+      });
+    }
+
+    function generateSchedule() {
+      const workDays = getSelectedScenarioValue();
+      if (!workDays) {
+        alert("Please select a scenario first.");
+        return;
+      }
+
+      selectedScenario = { ...scenarioResults[workDays] };
+
+      const demand = getDemandInputs();
+      const pattern = document.getElementById("weekOffPattern").value;
+
+      generatedRosterRows = [];
+      generatedCoverageRows = [];
+      summaryRows = [];
+
+      const maxDailyReq = Math.max(...DAYS.map(day => demand[day] || 0));
+      const activeHC = Math.max(selectedScenario.minHC, maxDailyReq);
+      const finalHC = Math.max(selectedScenario.finalHC, activeHC);
+      const reserveHC = Math.max(0, finalHC - activeHC);
+
+      const baseAgents = buildBaseCoverageRoster(activeHC, workDays, demand, pattern);
+      const allAgents = addReserveAgents(baseAgents, reserveHC);
+
+      selectedScenario.finalHC = finalHC;
+
+      generatedRosterRows = allAgents.map(agent => ({
+        Agent: `Agent ${agent.id}`,
+        Mon: agent.roster.Mon,
+        Tue: agent.roster.Tue,
+        Wed: agent.roster.Wed,
+        Thu: agent.roster.Thu,
+        Fri: agent.roster.Fri,
+        Sat: agent.roster.Sat,
+        Sun: agent.roster.Sun
+      }));
+
+      generatedCoverageRows = buildCoverageRows(allAgents, demand);
+
+      summaryRows.push({
+        "Weekly Demand": selectedScenario.weeklyDemand,
+        "Work Days Per Agent": selectedScenario.workDays,
+        "Minimum HC": selectedScenario.minHC,
+        "Active HC Used for Coverage": activeHC,
+        "Final HC Target": selectedScenario.finalHC,
+        "Reserve HC": reserveHC,
+        "Week Off Pattern": pattern
+      });
+
+      renderSummary(activeHC, reserveHC);
+      renderRoster();
+      renderCoverage();
+      renderInsight(activeHC, reserveHC);
+
+      document.getElementById("summarySection").classList.remove("hidden");
+      document.getElementById("rosterSection").classList.remove("hidden");
+      document.getElementById("coverageSection").classList.remove("hidden");
+      document.getElementById("insightSection").classList.remove("hidden");
+      document.getElementById("exportSection").classList.remove("hidden");
+    }
+
+    function renderSummary(activeHC, reserveHC) {
+      document.getElementById("kpiWeeklyDemand").innerText = selectedScenario.weeklyDemand;
+      document.getElementById("kpiWorkDays").innerText = selectedScenario.workDays;
+      document.getElementById("kpiMinHC").innerText = selectedScenario.minHC;
+      document.getElementById("kpiFinalHC").innerText = selectedScenario.finalHC;
+    }
+
+    function renderRoster() {
+      const tbody = document.querySelector("#rosterTable tbody");
+      tbody.innerHTML = "";
+
+      generatedRosterRows.forEach(r => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${r.Agent}</td>
+            <td>${r.Mon}</td>
+            <td>${r.Tue}</td>
+            <td>${r.Wed}</td>
+            <td>${r.Thu}</td>
+            <td>${r.Fri}</td>
+            <td>${r.Sat}</td>
+            <td>${r.Sun}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderCoverage() {
+      const tbody = document.querySelector("#coverageTable tbody");
+      tbody.innerHTML = "";
+
+      generatedCoverageRows.forEach(r => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${r.Day}</td>
+            <td>${r["Required HC"]}</td>
+            <td>${r["Scheduled HC"]}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderInsight(activeHC, reserveHC) {
+      const exactDays = generatedCoverageRows.filter(r => r["Required HC"] === r["Scheduled HC"]).length;
+
+      let insight = `
+        Total weekly demand is ${selectedScenario.weeklyDemand} agent-days.<br><br>
+        With a ${selectedScenario.workDays}-day work pattern, the minimum headcount required is ${selectedScenario.minHC} agents.<br><br>
+        The planner used ${activeHC} agents for direct day-level coverage and ${reserveHC} agents as reserve/buffer capacity.<br><br>
+        Exact daily coverage was achieved on ${exactDays} out of 7 days.<br><br>
+      `;
+
+      if (exactDays === 7) {
+        insight += `The generated schedule matches required HC exactly across the full week.`;
+      } else {
+        insight += `Some mismatch remains. In that case, increase the buffer or choose a different work pattern.`;
+      }
+
+      document.getElementById("plannerInsight").innerHTML = insight;
+    }
+
+    function rowsToCSV(rows) {
+      if (!rows.length) return "";
+      const headers = Object.keys(rows[0]);
+      const lines = [
+        headers.join(","),
+        ...rows.map(r => headers.map(h => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(","))
+      ];
+      return lines.join("\n");
+    }
+
+    function downloadTextFile(content, fileName) {
+      const blob = new Blob([content], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function downloadWeeklySchedule() {
+      if (!generatedRosterRows.length) {
+        alert("Generate a schedule first.");
+        return;
+      }
+      downloadTextFile(rowsToCSV(generatedRosterRows), "weekly_staffing_schedule.csv");
+    }
+
+    function downloadCoverageTable() {
+      if (!generatedCoverageRows.length) {
+        alert("Generate a schedule first.");
+        return;
+      }
+      downloadTextFile(rowsToCSV(generatedCoverageRows), "weekly_staffing_coverage.csv");
+    }
+
+    function downloadScenarioSummary() {
+      if (!summaryRows.length) {
+        alert("Generate a schedule first.");
+        return;
+      }
+      downloadTextFile(rowsToCSV(summaryRows), "weekly_staffing_summary.csv");
+    }
+  </script>
+</body>
+</html>
