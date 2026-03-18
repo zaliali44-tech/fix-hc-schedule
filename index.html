@@ -6,34 +6,83 @@
   <title>Weekly Staffing Scenario Planner</title>
 
   <style>
+    :root{
+      --bg:#020816;
+      --panel:#071326;
+      --panel-2:#09182f;
+      --text:#f4f8ff;
+      --muted:#a8bfdc;
+      --line:rgba(57,110,201,.28);
+      --line-2:rgba(95,137,204,.22);
+      --primary:#15e6ff;
+      --primary-dark:#0cc6de;
+      --good:#36e39c;
+      --warn:#ffbf47;
+      --bad:#ff6b7a;
+      --shadow:0 10px 30px rgba(0,0,0,.34);
+      --glow:0 0 0 1px rgba(21,230,255,.12), 0 0 24px rgba(21,230,255,.08);
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    html, body{
+      margin:0;
+      padding:0;
+      font-family:Inter, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(32,110,255,.18), transparent 28%),
+        radial-gradient(circle at 78% 10%, rgba(21,230,255,.14), transparent 24%),
+        linear-gradient(180deg, #031022 0%, #020816 44%, #01050f 100%);
+      background-attachment:fixed;
+    }
+
     body{
-      font-family:Arial, sans-serif;
-      background:#f4f7fb;
-      margin:40px;
-      color:#111827;
+      padding:6px;
+      overflow-x:hidden;
+    }
+
+    .app{
+      width:100%;
+      max-width:none;
+      margin:0;
+      padding:10px 10px 22px;
     }
 
     h1{
       text-align:center;
-      margin-bottom:10px;
+      margin:0 0 10px;
+      font-size:clamp(24px, 3.4vw, 42px);
+      font-weight:800;
+      letter-spacing:-0.03em;
+      color:#ffffff;
+      text-shadow:0 0 18px rgba(21,230,255,.12);
     }
 
     h2,h3{
       margin-top:0;
+      color:#ffffff;
     }
 
     .subtitle{
       text-align:center;
-      color:#475569;
-      margin-bottom:30px;
+      color:var(--muted);
+      margin:0 auto 24px;
+      max-width:920px;
+      line-height:1.6;
     }
 
     .section{
-      background:white;
+      background:linear-gradient(180deg, rgba(8,20,40,.96) 0%, rgba(5,14,28,.96) 100%);
       padding:20px;
-      margin-bottom:25px;
-      border-radius:10px;
-      box-shadow:0 3px 10px rgba(0,0,0,0.08);
+      margin-bottom:18px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      box-shadow:var(--shadow), var(--glow);
+      backdrop-filter:blur(10px) saturate(1.06);
+      -webkit-backdrop-filter:blur(10px) saturate(1.06);
     }
 
     .field-grid{
@@ -58,30 +107,32 @@
     }
 
     .kpi-card{
-      background:#f8fafc;
-      border:1px solid #e2e8f0;
+      background:rgba(11,25,48,.76);
+      border:1px solid var(--line-2);
       padding:14px;
-      border-radius:10px;
+      border-radius:12px;
     }
 
     .kpi-title{
       font-size:12px;
-      color:#475569;
+      color:var(--muted);
       margin-bottom:6px;
-      font-weight:bold;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.06em;
     }
 
     .kpi-value{
       font-size:24px;
-      font-weight:bold;
-      color:#0f172a;
+      font-weight:800;
+      color:#ffffff;
       margin-bottom:6px;
     }
 
     .kpi-note{
       font-size:12px;
-      color:#64748b;
-      line-height:1.4;
+      color:var(--muted);
+      line-height:1.5;
     }
 
     .field{
@@ -92,30 +143,44 @@
 
     label{
       font-size:13px;
-      color:#334155;
-      font-weight:bold;
+      color:#d7e6ff;
+      font-weight:700;
     }
 
     input, select{
-      padding:8px;
-      border:1px solid #cbd5e1;
-      border-radius:5px;
+      padding:10px 12px;
+      border:1px solid rgba(95,137,204,.34);
+      border-radius:10px;
       font-size:14px;
-      background:#fff;
+      background:rgba(7,17,34,.92);
+      color:#ffffff;
+      outline:none;
+      transition:.16s ease;
+    }
+
+    input:focus, select:focus{
+      border-color:rgba(21,230,255,.62);
+      box-shadow:0 0 0 4px rgba(21,230,255,.09);
     }
 
     button{
       padding:10px 16px;
-      background:#2c7be5;
-      color:white;
       border:none;
-      border-radius:5px;
+      border-radius:999px;
       cursor:pointer;
-      font-size:14px;
+      font-size:13px;
+      font-weight:800;
+      color:#03101c;
+      background:linear-gradient(180deg, rgba(25,244,255,.95), rgba(9,201,226,.92));
+      border:1px solid rgba(21,230,255,.82);
+      box-shadow:0 0 0 1px rgba(21,230,255,.18), 0 0 18px rgba(21,230,255,.18);
+      transition:.18s ease;
     }
 
     button:hover{
-      background:#1f6ad0;
+      background:linear-gradient(180deg, rgba(45,247,255,.98), rgba(13,216,237,.95));
+      box-shadow:0 0 0 1px rgba(21,230,255,.3), 0 0 24px rgba(21,230,255,.26);
+      transform:translateY(-1px);
     }
 
     .button-row{
@@ -126,51 +191,60 @@
     }
 
     .helper{
-      background:#eef6ff;
-      padding:12px;
-      border-radius:8px;
+      background:rgba(11,25,48,.76);
+      padding:12px 14px;
+      border-radius:12px;
       margin-top:10px;
       margin-bottom:10px;
-      line-height:1.5;
+      line-height:1.6;
       font-size:14px;
+      color:var(--muted);
+      border:1px solid var(--line-2);
     }
 
     .result-box{
       margin-top:12px;
       padding:14px;
-      border-radius:8px;
-      background:#f8fafc;
-      border:1px solid #e2e8f0;
+      border-radius:12px;
+      background:rgba(11,25,48,.76);
+      border:1px solid var(--line-2);
       min-height:20px;
-      line-height:1.6;
+      line-height:1.7;
+      color:#eaf3ff;
     }
 
     table{
       width:100%;
       border-collapse:collapse;
       font-size:13px;
+      background:rgba(7,17,34,.72);
     }
 
     th,td{
-      border:1px solid #ddd;
-      padding:8px;
+      border:1px solid rgba(95,137,204,.14);
+      padding:9px 8px;
       text-align:center;
       white-space:nowrap;
+      color:#eaf3ff;
     }
 
     th{
-      background:#eef2f7;
+      background:rgba(10,23,44,.92);
       position:sticky;
       top:0;
       z-index:2;
+      color:#9db8db;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:11px;
     }
 
     .table-scroll{
       margin-top:15px;
       max-height:620px;
       overflow:auto;
-      border:1px solid #e5e7eb;
-      border-radius:8px;
+      border:1px solid rgba(95,137,204,.18);
+      border-radius:12px;
     }
 
     .hidden{
@@ -185,21 +259,23 @@
     }
 
     .scenario-choice label{
-      font-weight:normal;
+      font-weight:500;
       display:flex;
       align-items:center;
       gap:8px;
-      background:#f8fafc;
+      background:rgba(11,25,48,.76);
       padding:10px 12px;
-      border:1px solid #e2e8f0;
-      border-radius:8px;
+      border:1px solid var(--line-2);
+      border-radius:12px;
       cursor:pointer;
+      color:#eaf3ff;
     }
 
     .legend{
       margin-top:10px;
       font-size:13px;
-      color:#64748b;
+      color:var(--muted);
+      line-height:1.5;
     }
 
     @media(max-width:1100px){
@@ -210,188 +286,190 @@
       }
 
       body{
-        margin:20px;
+        padding:6px;
       }
     }
   </style>
 </head>
 <body>
 
-  <h1>Weekly Staffing Scenario Planner</h1>
-  <div class="subtitle">
-    Plan fixed-shift staffing using day-level demand. Estimate required headcount and generate weekly schedules instantly.
-  </div>
-
-  <div class="section">
-    <h2>Daily HC Requirement</h2>
-
-    <div class="helper">
-      Enter required headcount for each day. The planner compares 5-day, 6-day, and 7-day work patterns, then generates a simple weekly schedule.
+  <div class="app">
+    <h1>Weekly Staffing Scenario Planner</h1>
+    <div class="subtitle">
+      Plan fixed-shift staffing using day-level demand. Estimate required headcount and generate weekly schedules instantly.
     </div>
 
-    <div class="field-grid">
-      <div class="field">
-        <label for="mon">Mon</label>
-        <input id="mon" type="number" min="0" value="15">
+    <div class="section">
+      <h2>Daily HC Requirement</h2>
+
+      <div class="helper">
+        Enter required headcount for each day. The planner compares 5-day, 6-day, and 7-day work patterns, then generates a simple weekly schedule.
       </div>
-      <div class="field">
-        <label for="tue">Tue</label>
-        <input id="tue" type="number" min="0" value="15">
+
+      <div class="field-grid">
+        <div class="field">
+          <label for="mon">Mon</label>
+          <input id="mon" type="number" min="0" value="15">
+        </div>
+        <div class="field">
+          <label for="tue">Tue</label>
+          <input id="tue" type="number" min="0" value="15">
+        </div>
+        <div class="field">
+          <label for="wed">Wed</label>
+          <input id="wed" type="number" min="0" value="15">
+        </div>
+        <div class="field">
+          <label for="thu">Thu</label>
+          <input id="thu" type="number" min="0" value="15">
+        </div>
+        <div class="field">
+          <label for="fri">Fri</label>
+          <input id="fri" type="number" min="0" value="15">
+        </div>
+        <div class="field">
+          <label for="sat">Sat</label>
+          <input id="sat" type="number" min="0" value="5">
+        </div>
+        <div class="field">
+          <label for="sun">Sun</label>
+          <input id="sun" type="number" min="0" value="5">
+        </div>
       </div>
-      <div class="field">
-        <label for="wed">Wed</label>
-        <input id="wed" type="number" min="0" value="15">
+
+      <div class="settings-grid">
+        <div class="field">
+          <label for="weekOffPattern">Week Off Pattern</label>
+          <select id="weekOffPattern">
+            <option value="best" selected>Best Fit</option>
+            <option value="continuous">Continuous</option>
+            <option value="split">Split</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="bufferHC">Planning Buffer (HC)</label>
+          <select id="bufferHC">
+            <option value="0">0</option>
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
       </div>
-      <div class="field">
-        <label for="thu">Thu</label>
-        <input id="thu" type="number" min="0" value="15">
-      </div>
-      <div class="field">
-        <label for="fri">Fri</label>
-        <input id="fri" type="number" min="0" value="15">
-      </div>
-      <div class="field">
-        <label for="sat">Sat</label>
-        <input id="sat" type="number" min="0" value="5">
-      </div>
-      <div class="field">
-        <label for="sun">Sun</label>
-        <input id="sun" type="number" min="0" value="5">
+
+      <div class="button-row">
+        <button type="button" onclick="loadExample()">Load Example</button>
+        <button type="button" onclick="calculateScenarios()">Calculate Scenario</button>
       </div>
     </div>
 
-    <div class="settings-grid">
-      <div class="field">
-        <label for="weekOffPattern">Week Off Pattern</label>
-        <select id="weekOffPattern">
-          <option value="best" selected>Best Fit</option>
-          <option value="continuous">Continuous</option>
-          <option value="split">Split</option>
-        </select>
+    <div class="section hidden" id="comparisonSection">
+      <h2>Scenario Comparison</h2>
+      <div class="result-box" id="weeklyDemandBox">Weekly Demand: 0 agent-days</div>
+
+      <div class="table-scroll">
+        <table id="comparisonTable">
+          <thead>
+            <tr>
+              <th>Work Pattern</th>
+              <th>Minimum HC</th>
+              <th>Final HC Target</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
 
-      <div class="field">
-        <label for="bufferHC">Planning Buffer (HC)</label>
-        <select id="bufferHC">
-          <option value="0">0</option>
-          <option value="1" selected>1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
+      <h3 style="margin-top:20px;">Select Scenario</h3>
+      <div class="scenario-choice">
+        <label><input type="radio" name="scenario" value="5"> 5-Day Work Pattern</label>
+        <label><input type="radio" name="scenario" value="6"> 6-Day Work Pattern</label>
+        <label><input type="radio" name="scenario" value="7"> 7-Day Work Pattern</label>
+      </div>
+
+      <div class="button-row">
+        <button type="button" onclick="generateSchedule()">Generate Schedule</button>
       </div>
     </div>
 
-    <div class="button-row">
-      <button type="button" onclick="loadExample()">Load Example</button>
-      <button type="button" onclick="calculateScenarios()">Calculate Scenario</button>
-    </div>
-  </div>
-
-  <div class="section hidden" id="comparisonSection">
-    <h2>Scenario Comparison</h2>
-    <div class="result-box" id="weeklyDemandBox">Weekly Demand: 0 agent-days</div>
-
-    <div class="table-scroll">
-      <table id="comparisonTable">
-        <thead>
-          <tr>
-            <th>Work Pattern</th>
-            <th>Minimum HC</th>
-            <th>Final HC Target</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <h3 style="margin-top:20px;">Select Scenario</h3>
-    <div class="scenario-choice">
-      <label><input type="radio" name="scenario" value="5"> 5-Day Work Pattern</label>
-      <label><input type="radio" name="scenario" value="6"> 6-Day Work Pattern</label>
-      <label><input type="radio" name="scenario" value="7"> 7-Day Work Pattern</label>
-    </div>
-
-    <div class="button-row">
-      <button type="button" onclick="generateSchedule()">Generate Schedule</button>
-    </div>
-  </div>
-
-  <div class="section hidden" id="summarySection">
-    <h2>HC Summary</h2>
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-title">Weekly Demand</div>
-        <div class="kpi-value" id="kpiWeeklyDemand">0</div>
-        <div class="kpi-note">Total required agent-days across the week.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Work Days / Agent</div>
-        <div class="kpi-value" id="kpiWorkDays">0</div>
-        <div class="kpi-note">Selected work pattern for each agent.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Minimum HC</div>
-        <div class="kpi-value" id="kpiMinHC">0</div>
-        <div class="kpi-note">Minimum efficient HC required to support the selected pattern.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Final HC Target</div>
-        <div class="kpi-value" id="kpiFinalHC">0</div>
-        <div class="kpi-note">Minimum HC plus the selected planning buffer.</div>
+    <div class="section hidden" id="summarySection">
+      <h2>HC Summary</h2>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-title">Weekly Demand</div>
+          <div class="kpi-value" id="kpiWeeklyDemand">0</div>
+          <div class="kpi-note">Total required agent-days across the week.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Work Days / Agent</div>
+          <div class="kpi-value" id="kpiWorkDays">0</div>
+          <div class="kpi-note">Selected work pattern for each agent.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Minimum HC</div>
+          <div class="kpi-value" id="kpiMinHC">0</div>
+          <div class="kpi-note">Minimum efficient HC required to support the selected pattern.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Final HC Target</div>
+          <div class="kpi-value" id="kpiFinalHC">0</div>
+          <div class="kpi-note">Minimum HC plus the selected planning buffer.</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="section hidden" id="rosterSection">
-    <h2>Generated Weekly Schedule</h2>
-    <div class="table-scroll">
-      <table id="rosterTable">
-        <thead>
-          <tr>
-            <th>Agent</th>
-            <th>Mon</th>
-            <th>Tue</th>
-            <th>Wed</th>
-            <th>Thu</th>
-            <th>Fri</th>
-            <th>Sat</th>
-            <th>Sun</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="section hidden" id="rosterSection">
+      <h2>Generated Weekly Schedule</h2>
+      <div class="table-scroll">
+        <table id="rosterTable">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Mon</th>
+              <th>Tue</th>
+              <th>Wed</th>
+              <th>Thu</th>
+              <th>Fri</th>
+              <th>Sat</th>
+              <th>Sun</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="legend">W = Working | OFF = Off Day | RESERVE = Buffer agent not used in base coverage</div>
     </div>
-    <div class="legend">W = Working | OFF = Off Day | RESERVE = Buffer agent not used in base coverage</div>
-  </div>
 
-  <div class="section hidden" id="coverageSection">
-    <h2>Coverage by Day</h2>
-    <div class="table-scroll">
-      <table id="coverageTable">
-        <thead>
-          <tr>
-            <th>Day</th>
-            <th>Required HC</th>
-            <th>Scheduled HC</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="section hidden" id="coverageSection">
+      <h2>Coverage by Day</h2>
+      <div class="table-scroll">
+        <table id="coverageTable">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Required HC</th>
+              <th>Scheduled HC</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
-  </div>
 
-  <div class="section hidden" id="insightSection">
-    <h2>Planner Insight</h2>
-    <div id="plannerInsight" class="result-box">Run the scenario to see planning insight.</div>
-  </div>
+    <div class="section hidden" id="insightSection">
+      <h2>Planner Insight</h2>
+      <div id="plannerInsight" class="result-box">Run the scenario to see planning insight.</div>
+    </div>
 
-  <div class="section hidden" id="exportSection">
-    <h2>Export Outputs</h2>
-    <div class="button-row">
-      <button type="button" onclick="downloadWeeklySchedule()">Download Weekly Schedule</button>
-      <button type="button" onclick="downloadCoverageTable()">Download Coverage Table</button>
-      <button type="button" onclick="downloadScenarioSummary()">Download Scenario Summary</button>
+    <div class="section hidden" id="exportSection">
+      <h2>Export Outputs</h2>
+      <div class="button-row">
+        <button type="button" onclick="downloadWeeklySchedule()">Download Weekly Schedule</button>
+        <button type="button" onclick="downloadCoverageTable()">Download Coverage Table</button>
+        <button type="button" onclick="downloadScenarioSummary()">Download Scenario Summary</button>
+      </div>
     </div>
   </div>
 
